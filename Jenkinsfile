@@ -65,10 +65,11 @@ pipeline {
                 }
             }
         }
-        stage('Deploy Staging') {
+
+        stage('Deploy Stage') {
             agent {
                 docker {
-                    image 'node:20-alpine'
+                    image 'mcr.microsoft.com/playwright:v1.39.0'
                     reuseNode true
                 }
             }
@@ -77,28 +78,7 @@ pipeline {
                     npm i netlify-cli node-jq
                     node_modules/.bin/netlify status
                     node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
-                '''
-                script {
-                    env.STAGING_URL=sh(script: 'node_modules/.bin/node-jq -r ".deploy_url" deploy-output.json', returnStdout: true)
-                    echo "STAGING_URL: ${env.STAGING_URL}"
-                }
-            }
-        }
-
-        stage('Stage E2E') {
-            agent {
-                docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0'
-                    reuseNode true
-                }
-            }
-            steps {
-                script {
-                    echo "Using STAGING_URL: ${env.STAGING_URL}"
-                    env.CI_ENVIRONMENT_URL = env.STAGING_URL
-                    echo "CI_ENVIRONMENT_URL: ${env.CI_ENVIRONMENT_URL}"
-                }
-                sh '''
+                    CI_ENVIRONMENT_URL=$(node_modules/.bin/node-jq -r ".deploy_url" deploy-output.json)
                     npx playwright test --reporter=html
                 '''
             }
