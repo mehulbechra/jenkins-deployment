@@ -4,9 +4,15 @@ pipeline {
     environment {
         NETLIFY_SITE_ID = '3c7a6f2f-b3e2-48e1-9444-791a1804abc2'
         NETLIFY_AUTH_TOKEN = credentials('netlify-token')
+        REACT_APP_VERSION="1.0.$BUILD_ID"
     }
     
     stages {
+        stage('Docker build') {
+            steps {
+                sh 'docker build -t my-playwright .'
+            }
+        }
         stage('Build') {
             agent {
                 docker {
@@ -69,7 +75,7 @@ pipeline {
         stage('Deploy Stage') {
             agent {
                 docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0'
+                    image 'my-playwright'
                     reuseNode true
                 }
             }
@@ -78,10 +84,9 @@ pipeline {
             }
             steps {
                 sh '''
-                    npm i netlify-cli node-jq
-                    node_modules/.bin/netlify status
-                    node_modules/.bin/netlify deploy --dir=build --json > deploy-output.json
-                    CI_ENVIRONMENT_URL=$(node_modules/.bin/node-jq -r ".deploy_url" deploy-output.json)
+                    netlify status
+                    netlify deploy --dir=build --json > deploy-output.json
+                    CI_ENVIRONMENT_URL=$(node-jq -r ".deploy_url" deploy-output.json)
                     export CI_ENVIRONMENT_URL
                     npx playwright test --reporter=html
                 '''
@@ -104,7 +109,7 @@ pipeline {
         stage('Deploy Prod') {
             agent {
                 docker {
-                    image 'mcr.microsoft.com/playwright:v1.39.0'
+                    image 'my-playwright'
                     reuseNode true
                 }
             }
@@ -113,9 +118,8 @@ pipeline {
             }
             steps {
                 sh '''
-                    npm i netlify-cli
-                    node_modules/.bin/netlify status
-                    node_modules/.bin/netlify deploy --dir=build --prod
+                    netlify status
+                    netlify deploy --dir=build --prod
                     npx playwright test --reporter=html
                 '''
             }
