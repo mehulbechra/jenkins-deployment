@@ -8,19 +8,6 @@ pipeline {
     }
     
     stages {
-        stage('AWS') {
-            agent {
-                docker {
-                    image 'amazon/aws-cli:2.22.18'
-                    args "--entrypoint=''"
-                }
-            }
-            steps {
-                sh '''
-                    aws --version
-                '''
-            }
-        }
         stage('Build') {
             agent {
                 docker {
@@ -33,6 +20,26 @@ pipeline {
                     npm ci
                     npm run build
                 '''
+            }
+        }
+        stage('AWS') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli:2.22.18'
+                    reuseNode true
+                    args "--entrypoint=''"
+                }
+            }
+            environment {
+                AWS_S3_BUCKET='jenkins-website'
+            }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'admin-general-aws', passwordVariable: 'AWS_SECRET_ACCESS_KEY', usernameVariable: 'AWS_ACCESS_KEY_ID')]) {
+                    sh '''
+                        aws --version
+                        aws s3 sync build s3://$AWS_S3_BUCKET
+                    '''
+                }
             }
         }
         stage('Run Tests') {
