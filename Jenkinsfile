@@ -9,6 +9,35 @@ pipeline {
     }
     
     stages {
+        stage('Build') {
+            agent {
+                docker {
+                    image 'node:20-alpine'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    npm ci
+                    npm run build
+                '''
+            }
+        }
+        stage('Build docker') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli:2.22.18'
+                    reuseNode true
+                    args "-u root -v /var/run/docker.sock:/var/run/docker.sock --entrypoint=''"
+                }
+            }
+            steps {
+                sh '''
+                    amazon-linux-extras intall docker
+                    docker build -t my-jenkins .
+                '''
+            }
+        }
         stage('Deploy to AWS ECS') {
             agent {
                 docker {
